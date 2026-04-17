@@ -1,6 +1,6 @@
 # Campus SkillSwap
 
-A beginner-friendly Django project for a student marketplace where users can post skills or services they offer to others.
+CampusSkillSwap is a real-world student marketplace web application where users can post the skills or services they offer. This project is developed using Vibe coding.
 
 ## Features
 - Create, edit, and view skill posts
