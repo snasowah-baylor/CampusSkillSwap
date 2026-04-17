@@ -1,0 +1,115 @@
+{% extends "marketplace/base.html" %}
+{% block title %}Dashboard — Campus SkillSwap{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+  <div>
+    <h1 class="fw-800 mb-1" style="font-size:1.6rem;">
+      Welcome back, {{ user.username }} <span style="font-size:1.2rem;">👋</span>
+    </h1>
+    <p class="text-muted mb-0 small">Manage your skill listings and keep availability up to date.</p>
+  </div>
+  <a class="btn btn-brand" href="{% url 'marketplace:skill_create' %}">
+    <i class="bi bi-plus-lg me-1"></i>New Skill Post
+  </a>
+</div>
+
+<!-- Stat chips -->
+{% with total=posts|length %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-chip">
+      <div class="stat-icon" style="background:#ede9fe; color:#6d28d9;">
+        <i class="bi bi-collection"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total Posts</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-chip">
+      <div class="stat-icon" style="background:#d1fae5; color:#065f46;">
+        <i class="bi bi-check-circle"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ posts|dictsort:"active"|last.active|yesno:"0," }}{{ posts|length }}</div>
+        <div class="stat-label">Active Posts</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+
+<!-- Listings -->
+{% if posts %}
+  <div class="row row-cols-1 row-cols-md-2 g-4">
+    {% for post in posts %}
+      <div class="col">
+        <div class="dashboard-card h-100">
+          <!-- Status stripe -->
+          {% if not post.active %}
+            <div class="status-stripe status-stripe-inactive"></div>
+          {% else %}
+            <div class="status-stripe status-stripe-{{ post.availability_status }}"></div>
+          {% endif %}
+
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h5 class="fw-700 mb-1" style="font-size:1rem;">{{ post.title }}</h5>
+                {% with cat=post.category|lower %}
+                  <span class="badge-category badge-{{ cat }}">{{ post.category }}</span>
+                {% endwith %}
+              </div>
+              <div class="text-end">
+                {% with avail=post.availability_status %}
+                  <span class="badge-status badge-{{ avail }} d-block mb-1">
+                    {{ post.get_availability_status_display }}
+                  </span>
+                {% endwith %}
+                {% if not post.active %}
+                  <span class="badge-status" style="background:#f1f5f9;color:#64748b;">Hidden</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <p class="text-muted small mb-3" style="line-height:1.55;">{{ post.description|truncatewords:18 }}</p>
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <span class="price-chip"><i class="bi bi-tag"></i>{{ post.display_price }}</span>
+              <span class="text-muted small"><i class="bi bi-chat-dots me-1"></i>{{ post.get_contact_preference_display }}</span>
+            </div>
+
+            <div class="d-flex gap-2">
+              <a href="{% url 'marketplace:skill_edit' post.pk %}" class="btn btn-outline-brand btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit
+              </a>
+              <a href="{% url 'marketplace:skill_detail' post.pk %}" class="btn btn-sm" style="border:1.5px solid #e2e8f0; border-radius:.625rem; color:#64748b; font-weight:600; font-size:.875rem; padding:.4rem 1rem;">
+                <i class="bi bi-eye me-1"></i>View
+              </a>
+              <a href="{% url 'marketplace:skill_delete' post.pk %}" class="btn btn-sm ms-auto"
+                 style="border:1.5px solid #fee2e2; border-radius:.625rem; color:#ef4444; font-weight:600; font-size:.875rem; padding:.4rem 1rem;">
+                <i class="bi bi-trash me-1"></i>Delete
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state" style="background:#fff; border-radius:1rem; box-shadow:var(--shadow-card);">
+    <i class="bi bi-journal-plus"></i>
+    <h5>No skill posts yet</h5>
+    <p class="mb-3">Share a skill you have and connect with other students.</p>
+    <a href="{% url 'marketplace:skill_create' %}" class="btn btn-brand">
+      <i class="bi bi-plus-lg me-1"></i>Post Your First Skill
+    </a>
+  </div>
+{% endif %}
+
+{% endblock %}

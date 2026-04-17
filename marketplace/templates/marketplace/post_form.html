@@ -1,0 +1,103 @@
+{% extends "marketplace/base.html" %}
+{% block title %}{% if object %}Edit Skill{% else %}Post a Skill{% endif %} — Campus SkillSwap{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <!-- Page header -->
+    <div class="mb-4">
+      <a href="{% url 'marketplace:dashboard' %}" class="text-muted small text-decoration-none">
+        <i class="bi bi-arrow-left me-1"></i>Back to dashboard
+      </a>
+      <h1 class="fw-800 mt-2 mb-1" style="font-size:1.5rem;">
+        {% if object %}Edit your skill post{% else %}Share a skill{% endif %}
+      </h1>
+      <p class="text-muted small mb-0">
+        {% if object %}Update the details below and save.{% else %}Tell other students what you can help with.{% endif %}
+      </p>
+    </div>
+
+    <div class="form-card">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <!-- Basics -->
+        <p class="form-section-title">Basics</p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+          {{ form.title }}
+          {% for error in form.title.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+          {{ form.description }}
+          {% for error in form.description.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold small" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+          {{ form.category }}
+          {% for error in form.category.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+
+        <!-- Pricing -->
+        <p class="form-section-title">Pricing</p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="{{ form.price.id_for_label }}">{{ form.price.label }}</label>
+          <div class="input-group">
+            <span class="input-group-text" style="border-radius:.625rem 0 0 .625rem; border:1.5px solid #e2e8f0; background:#f8fafc;">$</span>
+            {{ form.price }}
+          </div>
+          {% if form.price.help_text %}
+            <div class="form-text text-muted">{{ form.price.help_text }}</div>
+          {% endif %}
+          {% for error in form.price.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="mb-4 p-3 rounded-3" style="background:#f8fafc; border:1.5px solid #e2e8f0;">
+          <div class="form-check d-flex align-items-center gap-2 mb-0">
+            {{ form.is_free }}
+            <label class="form-check-label fw-semibold small" for="{{ form.is_free.id_for_label }}">
+              {{ form.is_free.label }}
+            </label>
+          </div>
+        </div>
+
+        <!-- Availability & contact -->
+        <p class="form-section-title">Availability &amp; Contact</p>
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold small" for="{{ form.availability_status.id_for_label }}">{{ form.availability_status.label }}</label>
+            {{ form.availability_status }}
+            {% for error in form.availability_status.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold small" for="{{ form.contact_preference.id_for_label }}">{{ form.contact_preference.label }}</label>
+            {{ form.contact_preference }}
+            {% for error in form.contact_preference.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <!-- Visibility -->
+        <p class="form-section-title">Visibility</p>
+        <div class="mb-4 p-3 rounded-3" style="background:#f8fafc; border:1.5px solid #e2e8f0;">
+          <div class="form-check d-flex align-items-center gap-2 mb-0">
+            {{ form.active }}
+            <label class="form-check-label fw-semibold small" for="{{ form.active.id_for_label }}">
+              {{ form.active.label }}
+            </label>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-brand">
+            <i class="bi bi-check-lg me-1"></i>{% if object %}Save Changes{% else %}Post Skill{% endif %}
+          </button>
+          <a href="{% url 'marketplace:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

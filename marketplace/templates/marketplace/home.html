@@ -1,0 +1,172 @@
+{% extends "marketplace/base.html" %}
+{% block title %}Browse Skills — Campus SkillSwap{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="hero mb-4">
+  <div class="row align-items-center g-4">
+    <div class="col-lg-7">
+      <h1 class="hero-title mb-2">Find students who can help — or share what you know</h1>
+      <p class="hero-sub mb-0">Campus SkillSwap connects Baylor students offering tutoring, creative work, tech help, and more.</p>
+    </div>
+    <div class="col-lg-5 text-lg-end">
+      {% if user.is_authenticated %}
+        <a class="btn btn-light fw-600 me-2" href="{% url 'marketplace:skill_create' %}">
+          <i class="bi bi-plus-lg me-1"></i>Post a Skill
+        </a>
+        <a class="btn btn-outline-light" href="{% url 'marketplace:dashboard' %}">My Dashboard</a>
+      {% else %}
+        <a class="btn btn-light fw-semibold me-2" href="{% url 'marketplace:signup' %}">Get Started</a>
+        <a class="btn btn-outline-light" href="{% url 'login' %}">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar mb-4">
+  <form method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold small mb-1" for="q">Search</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 pe-1" style="border-radius:.625rem 0 0 .625rem; border:1.5px solid #e2e8f0;">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input type="search" class="form-control border-start-0 ps-1" id="q" name="q"
+                 value="{{ query }}" placeholder="Title, description, or username"
+                 style="border-radius:0 .625rem .625rem 0;">
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label fw-semibold small mb-1" for="category">Category</label>
+        <select class="form-select" id="category" name="category">
+          <option value="">All categories</option>
+          {% for value, label in categories %}
+            <option value="{{ value }}" {% if value == selected_category %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label fw-semibold small mb-1" for="availability">Availability</label>
+        <select class="form-select" id="availability" name="availability">
+          <option value="">Any status</option>
+          {% for value, label in availabilities %}
+            <option value="{{ value }}" {% if value == selected_availability %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label fw-semibold small mb-1" for="price">Price</label>
+        <select class="form-select" id="price" name="price">
+          <option value="">Any price</option>
+          <option value="free" {% if selected_price == "free" %}selected{% endif %}>Free</option>
+          <option value="paid" {% if selected_price == "paid" %}selected{% endif %}>Paid</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-brand flex-fill">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="{% url 'marketplace:home' %}" class="btn btn-outline-secondary" title="Clear filters">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Results count -->
+{% if query or selected_category or selected_availability or selected_price %}
+  <p class="text-muted small mb-3">
+    <i class="bi bi-filter-circle me-1"></i>
+    Showing {{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}
+    {% if query %}for "<strong>{{ query }}</strong>"{% endif %}
+  </p>
+{% endif %}
+
+<!-- Skill grid -->
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4">
+  {% for post in posts %}
+    <div class="col">
+      <div class="card skill-card h-100">
+        <div class="card-body p-4">
+          <!-- Category + status row -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            {% with cat=post.category|lower %}
+              <span class="badge-category badge-{{ cat }}">{{ post.category }}</span>
+            {% endwith %}
+            {% with avail=post.availability_status %}
+              <span class="badge-status badge-{{ avail }}">
+                {% if avail == "available" %}<i class="bi bi-circle-fill me-1" style="font-size:.5rem;vertical-align:middle;"></i>{% endif %}
+                {{ post.get_availability_status_display }}
+              </span>
+            {% endwith %}
+          </div>
+
+          <!-- Title -->
+          <h5 class="fw-700 mb-2 lh-sm" style="font-size:1rem;">{{ post.title }}</h5>
+          <p class="text-muted small mb-3" style="line-height:1.55;">{{ post.description|truncatewords:22 }}</p>
+
+          <!-- Price + contact -->
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="price-chip">
+              <i class="bi bi-tag"></i>{{ post.display_price }}
+            </span>
+            <span class="text-muted small">
+              <i class="bi bi-chat-dots me-1"></i>{{ post.get_contact_preference_display }}
+            </span>
+          </div>
+        </div>
+        <div class="card-footer d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-person me-1"></i>{{ post.owner.username }}</span>
+          <span>{{ post.created_at|date:"M j, Y" }}</span>
+        </div>
+        <a href="{% url 'marketplace:skill_detail' post.pk %}" class="stretched-link" aria-label="View {{ post.title }}"></a>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <h5>No skill posts found</h5>
+        <p class="mb-3">Try adjusting your filters or be the first to list a skill.</p>
+        {% if user.is_authenticated %}
+          <a href="{% url 'marketplace:skill_create' %}" class="btn btn-brand">Post a Skill</a>
+        {% else %}
+          <a href="{% url 'marketplace:signup' %}" class="btn btn-brand">Get Started</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.previous_page_number }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+          <a class="page-link" href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}">{{ num }}</a>
+        </li>
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.next_page_number }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endif %}
+
+{% endblock %}
