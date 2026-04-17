@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -77,3 +78,36 @@ class Skill(models.Model):
         if self.price is None:
             return "Contact for price"
         return f"${self.price:.2f}"
+
+    def average_rating(self):
+        result = self.reviews.aggregate(avg=Avg("rating"))["avg"]
+        return round(result, 1) if result else None
+
+    def review_count(self):
+        return self.reviews.count()
+
+
+class Review(models.Model):
+    skill    = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="reviews")
+    reviewer = models.ForeignKey(User,  on_delete=models.CASCADE, related_name="reviews_given")
+    rating   = models.PositiveSmallIntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+    )
+    comment  = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["skill", "reviewer"],
+                name="one_review_per_skill",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.reviewer.username} → {self.skill.title} ({self.rating}★)"
+
+    @property
+    def star_range(self):
+        return range(1, 6)

@@ -3,7 +3,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import (
     CreateView,
@@ -13,8 +13,8 @@ from django.views.generic import (
     UpdateView,
 )
 
-from .forms import SkillForm, SignupForm
-from .models import Skill
+from .forms import ReviewForm, SkillForm, SignupForm
+from .models import Review, Skill
 
 
 class HomeView(ListView):
@@ -81,6 +81,26 @@ class SkillDetailView(DetailView):
     model = Skill
     template_name = "marketplace/post_detail.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        skill   = self.object
+        reviews = skill.reviews.select_related("reviewer").all()
+        user    = self.request.user
+        user_review = reviews.filter(reviewer=user).first() if user.is_authenticated else None
+        context.update({
+            "reviews":          reviews,
+            "review_count":     reviews.count(),
+            "average_rating":   skill.average_rating(),
+            "review_form":      ReviewForm(),
+            "user_review":      user_review,
+            "can_review":       (
+                user.is_authenticated
+                and skill.owner != user
+                and user_review is None
+            ),
+        })
+        return context
+
 
 class SkillCreateView(LoginRequiredMixin, CreateView):
     model = Skill
@@ -132,7 +152,42 @@ class SkillDeleteView(LoginRequiredMixin, DeleteView):
 @login_required
 def dashboard(request):
     posts = request.user.skills.all()
-    return render(request, "marketplace/dashboard.html", {"posts": posts})
+    return render(request, "marketplace/dashboard.html", {
+        "posts": posts,
+        "active_count": posts.filter(active=True).count(),
+    })
+
+
+@login_required
+def add_review(request, pk):
+    skill = get_object_or_404(Skill, pk=pk)
+    if skill.owner == request.user:
+        messages.error(request, "You cannot review your own skill.")
+        return redirect("marketplace:skill_detail", pk=pk)
+    if Review.objects.filter(skill=skill, reviewer=request.user).exists():
+        messages.error(request, "You have already reviewed this skill.")
+        return redirect("marketplace:skill_detail", pk=pk)
+    if request.method == "POST":
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.skill    = skill
+            review.reviewer = request.user
+            review.save()
+            messages.success(request, "Your review was submitted. Thank you!")
+        else:
+            messages.error(request, "Please correct the errors in your review.")
+    return redirect("marketplace:skill_detail", pk=pk)
+
+
+@login_required
+def delete_review(request, pk):
+    review   = get_object_or_404(Review, pk=pk, reviewer=request.user)
+    skill_pk = review.skill.pk
+    if request.method == "POST":
+        review.delete()
+        messages.success(request, "Your review was deleted.")
+    return redirect("marketplace:skill_detail", pk=skill_pk)
 
 
 def signup(request):

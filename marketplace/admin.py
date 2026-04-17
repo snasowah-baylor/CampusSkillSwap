@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 
-from .models import Skill
+from .models import Review, Skill
 
 User = get_user_model()
 
@@ -42,6 +42,16 @@ def set_unavailable(modeladmin, request, queryset):
 @admin.action(description="Mark selected posts as free")
 def mark_free(modeladmin, request, queryset):
     queryset.update(is_free=True, price=None)
+
+
+# ── Review inline (used inside Skill admin) ───────────────────────────────────
+class ReviewInline(admin.TabularInline):
+    model       = Review
+    extra       = 0
+    fields      = ("reviewer", "rating", "comment", "created_at")
+    readonly_fields = ("reviewer", "created_at")
+    can_delete  = True
+    show_change_link = True
 
 
 # ── Skill inline (used inside User admin) ─────────────────────────────────────
@@ -93,6 +103,7 @@ class SkillAdmin(admin.ModelAdmin):
     actions        = [make_active, make_inactive,
                       set_available, set_busy, set_unavailable, mark_free]
 
+    inlines    = [ReviewInline]
     fieldsets = (
         ("Post Details", {
             "fields": ("owner", "title", "description", "category"),
@@ -152,3 +163,28 @@ class SkillAdmin(admin.ModelAdmin):
     def price_display(self, obj):
         return obj.display_price()
     price_display.short_description = "Price"
+
+
+# ── Review admin ───────────────────────────────────────────────────────────────
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display  = ("skill", "reviewer", "star_rating", "short_comment", "created_at")
+    list_filter   = ("rating",)
+    search_fields = ("skill__title", "reviewer__username", "comment")
+    readonly_fields = ("skill", "reviewer", "created_at")
+    ordering      = ("-created_at",)
+
+    def star_rating(self, obj):
+        filled = "★" * obj.rating
+        empty  = "☆" * (5 - obj.rating)
+        return format_html(
+            '<span style="color:#f59e0b;font-size:1.1rem;">{}</span>'
+            '<span style="color:#d1d5db;font-size:1.1rem;">{}</span>',
+            filled, empty,
+        )
+    star_rating.short_description = "Rating"
+    star_rating.admin_order_field = "rating"
+
+    def short_comment(self, obj):
+        return (obj.comment[:60] + "…") if len(obj.comment) > 60 else obj.comment or "—"
+    short_comment.short_description = "Comment"

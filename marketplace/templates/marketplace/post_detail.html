@@ -14,7 +14,7 @@
 <div class="row g-4">
   <!-- Main content -->
   <div class="col-lg-8">
-    <div class="detail-card p-4 p-md-5">
+    <div class="detail-card p-4 p-md-5 mb-4">
       <!-- Category + status -->
       <div class="d-flex align-items-center gap-2 mb-3">
         {% with cat=object.category|lower %}
@@ -35,8 +35,29 @@
         </div>
       </div>
 
+      <!-- Average rating summary -->
+      {% if average_rating %}
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div>
+            {% for i in "12345" %}
+              {% with n=forloop.counter %}
+                {% if n <= average_rating %}
+                  <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+                {% else %}
+                  <i class="bi bi-star" style="color:#d1d5db;"></i>
+                {% endif %}
+              {% endwith %}
+            {% endfor %}
+          </div>
+          <span class="fw-700">{{ average_rating }}</span>
+          <span class="text-muted small">({{ review_count }} review{{ review_count|pluralize }})</span>
+        </div>
+      {% else %}
+        <p class="text-muted small mb-3"><i class="bi bi-star me-1"></i>No reviews yet</p>
+      {% endif %}
+
       <!-- Description -->
-      <p class="text-muted mb-0" style="font-size:0.98rem; line-height:1.7;">{{ object.description }}</p>
+      <p style="font-size:0.98rem; line-height:1.7;">{{ object.description }}</p>
 
       {% if user == object.owner %}
         <hr class="my-4">
@@ -44,12 +65,113 @@
           <a class="btn btn-brand" href="{% url 'marketplace:skill_edit' object.pk %}">
             <i class="bi bi-pencil me-1"></i>Edit Post
           </a>
-          <a class="btn btn-sm" href="{% url 'marketplace:skill_delete' object.pk %}"
-             style="border:1.5px solid #fee2e2; border-radius:.625rem; color:#ef4444; font-weight:600; padding:.5rem 1.1rem;">
+          <a href="{% url 'marketplace:skill_delete' object.pk %}"
+             style="border:1.5px solid #fee2e2; border-radius:.625rem; color:#ef4444; font-weight:600; padding:.5rem 1.1rem;" class="btn btn-sm">
             <i class="bi bi-trash me-1"></i>Delete
           </a>
         </div>
       {% endif %}
+    </div>
+
+    <!-- Reviews section -->
+    <div class="detail-card p-4 p-md-5">
+      <h2 class="fw-800 mb-4" style="font-size:1.2rem;">
+        <i class="bi bi-chat-square-text me-2"></i>Reviews
+        {% if review_count %}<span class="text-muted fw-400 small">({{ review_count }})</span>{% endif %}
+      </h2>
+
+      <!-- Submit review form -->
+      {% if can_review %}
+        <div class="mb-4 p-4 rounded-3" style="background:#f8fafc; border:1.5px solid #e2e8f0;">
+          <p class="fw-700 small mb-3">Leave a review</p>
+          <form method="post" action="{% url 'marketplace:add_review' object.pk %}">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-sm-4">
+                <label class="form-label fw-semibold small mb-1" for="{{ review_form.rating.id_for_label }}">
+                  {{ review_form.rating.label }}
+                </label>
+                {{ review_form.rating }}
+                {% for error in review_form.rating.errors %}
+                  <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="col-sm-8">
+                <label class="form-label fw-semibold small mb-1" for="{{ review_form.comment.id_for_label }}">
+                  {{ review_form.comment.label }}
+                </label>
+                {{ review_form.comment }}
+                {% for error in review_form.comment.errors %}
+                  <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+            <button type="submit" class="btn btn-brand mt-3">
+              <i class="bi bi-send me-1"></i>Submit Review
+            </button>
+          </form>
+        </div>
+      {% elif user_review %}
+        <div class="alert alert-info mb-4">
+          <i class="bi bi-info-circle me-1"></i>You have already reviewed this skill.
+        </div>
+      {% elif user == object.owner %}
+        <div class="alert alert-info mb-4">
+          <i class="bi bi-info-circle me-1"></i>You cannot review your own skill.
+        </div>
+      {% elif not user.is_authenticated %}
+        <div class="alert alert-info mb-4">
+          <i class="bi bi-info-circle me-1"></i>
+          <a href="{% url 'login' %}" class="fw-semibold">Log in</a> to leave a review.
+        </div>
+      {% endif %}
+
+      <!-- Review list -->
+      {% for review in reviews %}
+        <div class="mb-4 pb-4 {% if not forloop.last %}border-bottom{% endif %}">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <div class="owner-avatar" style="width:36px;height:36px;font-size:.85rem;">
+                {{ review.reviewer.username|slice:":2"|upper }}
+              </div>
+              <div>
+                <div class="fw-700 small">{{ review.reviewer.username }}</div>
+                <div class="text-muted" style="font-size:.75rem;">{{ review.created_at|date:"M j, Y" }}</div>
+              </div>
+            </div>
+            <!-- Stars -->
+            <div>
+              {% for i in review.star_range %}
+                {% if i <= review.rating %}
+                  <i class="bi bi-star-fill" style="color:#f59e0b;font-size:.9rem;"></i>
+                {% else %}
+                  <i class="bi bi-star" style="color:#d1d5db;font-size:.9rem;"></i>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+
+          {% if review.comment %}
+            <p class="mb-2 small" style="line-height:1.6;">{{ review.comment }}</p>
+          {% endif %}
+
+          {% if user == review.reviewer %}
+            <form method="post" action="{% url 'marketplace:delete_review' review.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm"
+                      style="border:1.5px solid #fee2e2;border-radius:.5rem;color:#ef4444;font-size:.78rem;padding:.25rem .75rem;font-weight:600;"
+                      onclick="return confirm('Delete this review?')">
+                <i class="bi bi-trash me-1"></i>Delete
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="empty-state py-4">
+          <i class="bi bi-chat-square" style="font-size:2rem;"></i>
+          <p class="mt-2 mb-0 text-muted small">No reviews yet — be the first!</p>
+        </div>
+      {% endfor %}
     </div>
   </div>
 
@@ -58,7 +180,7 @@
     <!-- Owner card -->
     <div class="detail-card p-4 mb-3">
       <p class="form-section-title mb-3">Posted by</p>
-      <div class="d-flex align-items-center gap-3 mb-1">
+      <div class="d-flex align-items-center gap-3">
         <div class="owner-avatar">{{ object.owner.username|slice:":2"|upper }}</div>
         <div>
           <div class="fw-700">{{ object.owner.username }}</div>
@@ -80,16 +202,24 @@
           {% endwith %}
           <span class="fw-600 small">{{ object.get_contact_preference_display }}</span>
         </div>
-        <p class="text-muted small mb-0">Reach out to {{ object.owner.username }} via their preferred contact method above.</p>
+        <p class="text-muted small mb-0">
+          Reach out to {{ object.owner.username }} via their preferred contact method above.
+        </p>
       </div>
       <div class="d-flex flex-column gap-2">
         <div class="d-flex justify-content-between text-muted small py-1 border-bottom">
           <span>Status</span>
           <span class="fw-600 text-dark">{{ object.get_availability_status_display }}</span>
         </div>
-        <div class="d-flex justify-content-between text-muted small py-1">
+        <div class="d-flex justify-content-between text-muted small py-1 border-bottom">
           <span>Category</span>
           <span class="fw-600 text-dark">{{ object.category }}</span>
+        </div>
+        <div class="d-flex justify-content-between text-muted small py-1">
+          <span>Rating</span>
+          <span class="fw-600 text-dark">
+            {% if average_rating %}{{ average_rating }} / 5{% else %}No reviews{% endif %}
+          </span>
         </div>
       </div>
     </div>

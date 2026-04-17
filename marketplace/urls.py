@@ -6,7 +6,9 @@ from .views import (
     SkillDeleteView,
     SkillDetailView,
     SkillUpdateView,
+    add_review,
     dashboard,
+    delete_review,
     signup,
 )
 
@@ -24,4 +26,6 @@ urlpatterns = [
         SkillDeleteView.as_view(),
         name="skill_delete",
     ),
+    path("skill/<int:pk>/review/",        add_review,    name="add_review"),
+    path("review/<int:pk>/delete/",       delete_review, name="delete_review"),
 ]
