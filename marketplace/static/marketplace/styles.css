@@ -370,3 +370,97 @@ main { flex: 1; }
   font-size: 1.4rem;
   margin: 0 auto 1.25rem;
 }
+
+/* ── Star rating input widget ─────────────────────────────── */
+.star-rating-input {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: .15rem;
+}
+
+.star-rating-input input[type="radio"] {
+  display: none;
+}
+
+.star-rating-input label {
+  cursor: pointer;
+  font-size: 1.75rem;
+  color: #d1d5db;
+  line-height: 1;
+  transition: color .1s;
+}
+
+/* Fill stars from selected outward (row-reverse means ~ selects visually-left siblings) */
+.star-rating-input input[type="radio"]:checked ~ label,
+.star-rating-input label:hover,
+.star-rating-input label:hover ~ label {
+  color: #f59e0b;
+}
+
+/* ── Inline card star display ─────────────────────────────── */
+.card-stars {
+  color: #f59e0b;
+  font-size: .78rem;
+  line-height: 1;
+}
+.card-stars .star-empty { color: #e2e8f0; }
+
+/* ── Active filter pills ──────────────────────────────────── */
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: .75rem;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  border: 1.5px solid var(--brand-200, #c7d2fe);
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .2em .75em;
+  text-decoration: none;
+}
+
+.filter-pill .pill-x {
+  font-size: .85rem;
+  opacity: .6;
+  line-height: 1;
+}
+.filter-pill:hover { background: var(--brand-200, #c7d2fe); color: var(--brand-700); }
+
+/* ── Profile page ─────────────────────────────────────────── */
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--brand-100);
+  color: var(--brand-600);
+  font-weight: 800;
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── More-from-provider cards ─────────────────────────────── */
+.mini-card {
+  background: #fff;
+  border-radius: .75rem;
+  box-shadow: var(--shadow-card);
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.mini-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  color: inherit;
+}

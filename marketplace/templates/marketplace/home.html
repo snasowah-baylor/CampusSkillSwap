@@ -3,7 +3,8 @@
 
 {% block content %}
 
-<!-- Hero -->
+<!-- Hero — shown only to guests so returning users get straight to browsing -->
+{% if not user.is_authenticated %}
 <div class="hero mb-4">
   <div class="row align-items-center g-4">
     <div class="col-lg-7">
@@ -11,22 +12,16 @@
       <p class="hero-sub mb-0">Campus SkillSwap connects Baylor students offering tutoring, creative work, tech help, and more.</p>
     </div>
     <div class="col-lg-5 text-lg-end">
-      {% if user.is_authenticated %}
-        <a class="btn btn-light fw-600 me-2" href="{% url 'marketplace:skill_create' %}">
-          <i class="bi bi-plus-lg me-1"></i>Post a Skill
-        </a>
-        <a class="btn btn-outline-light" href="{% url 'marketplace:dashboard' %}">My Dashboard</a>
-      {% else %}
-        <a class="btn btn-light fw-semibold me-2" href="{% url 'marketplace:signup' %}">Get Started</a>
-        <a class="btn btn-outline-light" href="{% url 'login' %}">Login</a>
-      {% endif %}
+      <a class="btn btn-light fw-semibold me-2" href="{% url 'marketplace:signup' %}">Get Started</a>
+      <a class="btn btn-outline-light" href="{% url 'login' %}">Login</a>
     </div>
   </div>
 </div>
+{% endif %}
 
 <!-- Filter bar -->
-<div class="filter-bar mb-4">
-  <form method="get">
+<div class="filter-bar mb-3">
+  <form method="get" id="filter-form">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
         <label class="form-label fw-semibold small mb-1" for="q">Search</label>
@@ -74,8 +69,52 @@
         </a>
       </div>
     </div>
+
+    <!-- Sort row -->
+    <div class="row g-2 mt-1 align-items-center">
+      <div class="col-auto">
+        <label class="form-label fw-semibold small mb-0 me-1" for="sort">Sort by</label>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-select-sm" id="sort" name="sort" onchange="this.form.submit()" style="min-width:170px;">
+          {% for value, label in sort_options %}
+            <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
   </form>
 </div>
+
+<!-- Active filter pills -->
+{% if query or selected_category or selected_availability or selected_price %}
+<div class="filter-pills">
+  {% if query %}
+    <a class="filter-pill" href="?category={{ selected_category }}&availability={{ selected_availability }}&price={{ selected_price }}&sort={{ selected_sort }}" title="Remove search">
+      <i class="bi bi-search" style="font-size:.7rem;"></i>{{ query }}<span class="pill-x">×</span>
+    </a>
+  {% endif %}
+  {% if selected_category %}
+    {% for val, lbl in categories %}{% if val == selected_category %}
+    <a class="filter-pill" href="?q={{ query }}&availability={{ selected_availability }}&price={{ selected_price }}&sort={{ selected_sort }}" title="Remove category">
+      {{ lbl }}<span class="pill-x">×</span>
+    </a>
+    {% endif %}{% endfor %}
+  {% endif %}
+  {% if selected_availability %}
+    {% for val, lbl in availabilities %}{% if val == selected_availability %}
+    <a class="filter-pill" href="?q={{ query }}&category={{ selected_category }}&price={{ selected_price }}&sort={{ selected_sort }}" title="Remove availability">
+      {{ lbl }}<span class="pill-x">×</span>
+    </a>
+    {% endif %}{% endfor %}
+  {% endif %}
+  {% if selected_price %}
+    <a class="filter-pill" href="?q={{ query }}&category={{ selected_category }}&availability={{ selected_availability }}&sort={{ selected_sort }}" title="Remove price filter">
+      {% if selected_price == "free" %}Free only{% else %}Paid only{% endif %}<span class="pill-x">×</span>
+    </a>
+  {% endif %}
+</div>
+{% endif %}
 
 <!-- Results count -->
 {% if query or selected_category or selected_availability or selected_price %}
@@ -106,8 +145,26 @@
           </div>
 
           <!-- Title -->
-          <h5 class="fw-700 mb-2 lh-sm" style="font-size:1rem;">{{ post.title }}</h5>
-          <p class="text-muted small mb-3" style="line-height:1.55;">{{ post.description|truncatewords:22 }}</p>
+          <h5 class="fw-700 mb-1 lh-sm" style="font-size:1rem;">{{ post.title }}</h5>
+
+          <!-- Star rating inline -->
+          <div class="d-flex align-items-center gap-1 mb-2" style="min-height:1.2rem;">
+            {% if post.avg_rating %}
+              <div class="card-stars">
+                {% for i in "12345" %}
+                  {% with n=forloop.counter %}
+                    {% if n <= post.avg_rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star star-empty"></i>{% endif %}
+                  {% endwith %}
+                {% endfor %}
+              </div>
+              <span class="fw-700 small" style="color:#92400e;">{{ post.avg_rating|floatformat:1 }}</span>
+              <span class="text-muted" style="font-size:.72rem;">({{ post.review_count }} review{{ post.review_count|pluralize }})</span>
+            {% else %}
+              <span class="text-muted" style="font-size:.75rem;">No reviews yet</span>
+            {% endif %}
+          </div>
+
+          <p class="text-muted small mb-3" style="line-height:1.55;">{{ post.description|truncatewords:20 }}</p>
 
           <!-- Price + contact -->
           <div class="d-flex justify-content-between align-items-center">
@@ -120,7 +177,9 @@
           </div>
         </div>
         <div class="card-footer d-flex align-items-center justify-content-between">
-          <span><i class="bi bi-person me-1"></i>{{ post.owner.username }}</span>
+          <a href="{% url 'marketplace:user_profile' post.owner.username %}" class="text-decoration-none text-muted" onclick="event.stopPropagation();">
+            <i class="bi bi-person me-1"></i>{{ post.owner.username }}
+          </a>
           <span>{{ post.created_at|date:"M j, Y" }}</span>
         </div>
         <a href="{% url 'marketplace:skill_detail' post.pk %}" class="stretched-link" aria-label="View {{ post.title }}"></a>
@@ -142,25 +201,25 @@
   {% endfor %}
 </div>
 
-<!-- Pagination -->
+<!-- Pagination — carries ALL active filters -->
 {% if is_paginated %}
   <nav aria-label="Page navigation">
     <ul class="pagination justify-content-center">
       {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.previous_page_number }}">
+          <a class="page-link" href="?q={{ query }}&category={{ selected_category }}&availability={{ selected_availability }}&contact={{ selected_contact }}&price={{ selected_price }}&sort={{ selected_sort }}&page={{ page_obj.previous_page_number }}">
             <i class="bi bi-chevron-left"></i>
           </a>
         </li>
       {% endif %}
       {% for num in page_obj.paginator.page_range %}
         <li class="page-item {% if num == page_obj.number %}active{% endif %}">
-          <a class="page-link" href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}">{{ num }}</a>
+          <a class="page-link" href="?q={{ query }}&category={{ selected_category }}&availability={{ selected_availability }}&contact={{ selected_contact }}&price={{ selected_price }}&sort={{ selected_sort }}&page={{ num }}">{{ num }}</a>
         </li>
       {% endfor %}
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.next_page_number }}">
+          <a class="page-link" href="?q={{ query }}&category={{ selected_category }}&availability={{ selected_availability }}&contact={{ selected_contact }}&price={{ selected_price }}&sort={{ selected_sort }}&page={{ page_obj.next_page_number }}">
             <i class="bi bi-chevron-right"></i>
           </a>
         </li>

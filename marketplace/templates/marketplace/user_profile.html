@@ -1,0 +1,111 @@
+{% extends "marketplace/base.html" %}
+{% block title %}{{ profile_user.username }} — Campus SkillSwap{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+  <!-- Profile header + stats -->
+  <div class="col-12">
+    <div class="detail-card p-4 p-md-5">
+      <div class="d-flex flex-column flex-md-row align-items-md-center gap-4">
+        <div class="profile-avatar flex-shrink-0">
+          {{ profile_user.username|slice:":2"|upper }}
+        </div>
+        <div class="flex-grow-1">
+          <h1 class="fw-800 mb-1" style="font-size:1.6rem;">{{ profile_user.username }}</h1>
+          <p class="text-muted small mb-3">Member since {{ profile_user.date_joined|date:"F Y" }}</p>
+          <div class="d-flex flex-wrap gap-3">
+            <span class="d-flex align-items-center gap-1 small fw-600">
+              <i class="bi bi-collection text-muted"></i>{{ skill_count }} skill{{ skill_count|pluralize }}
+            </span>
+            <span class="d-flex align-items-center gap-1 small fw-600">
+              <i class="bi bi-chat-square-text text-muted"></i>{{ review_total }} review{{ review_total|pluralize }} received
+            </span>
+            {% if avg_rating %}
+              <span class="d-flex align-items-center gap-1 small fw-600">
+                <i class="bi bi-star-fill" style="color:#f59e0b;"></i>{{ avg_rating }} avg. rating
+              </span>
+            {% endif %}
+          </div>
+        </div>
+        {% if user.is_authenticated and user != profile_user %}
+          <div class="flex-shrink-0">
+            <a href="{% url 'marketplace:skill_create' %}" class="btn btn-brand btn-sm">
+              <i class="bi bi-plus-lg me-1"></i>Post Your Own Skill
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Skills grid -->
+  <div class="col-12">
+    <h2 class="fw-700 mb-3" style="font-size:1.1rem;">
+      <i class="bi bi-collection me-2 text-muted"></i>Skills by {{ profile_user.username }}
+    </h2>
+
+    {% if skills %}
+      <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {% for s in skills %}
+          <div class="col">
+            <div class="card skill-card h-100">
+              <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  {% with cat=s.category|lower %}
+                    <span class="badge-category badge-{{ cat }}">{{ s.category }}</span>
+                  {% endwith %}
+                  {% with avail=s.availability_status %}
+                    <span class="badge-status badge-{{ avail }}">
+                      {% if avail == "available" %}<i class="bi bi-circle-fill me-1" style="font-size:.5rem;vertical-align:middle;"></i>{% endif %}
+                      {{ s.get_availability_status_display }}
+                    </span>
+                  {% endwith %}
+                </div>
+
+                <h5 class="fw-700 mb-1 lh-sm" style="font-size:1rem;">{{ s.title }}</h5>
+
+                <div class="d-flex align-items-center gap-1 mb-2" style="min-height:1.2rem;">
+                  {% if s.avg_rating %}
+                    <div class="card-stars">
+                      {% for i in "12345" %}{% with n=forloop.counter %}{% if n <= s.avg_rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star star-empty"></i>{% endif %}{% endwith %}{% endfor %}
+                    </div>
+                    <span class="fw-700 small" style="color:#92400e;">{{ s.avg_rating|floatformat:1 }}</span>
+                    <span class="text-muted" style="font-size:.72rem;">({{ s.review_count }} review{{ s.review_count|pluralize }})</span>
+                  {% else %}
+                    <span class="text-muted" style="font-size:.75rem;">No reviews yet</span>
+                  {% endif %}
+                </div>
+
+                <p class="text-muted small mb-3" style="line-height:1.55;">{{ s.description|truncatewords:20 }}</p>
+
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="price-chip"><i class="bi bi-tag"></i>{{ s.display_price }}</span>
+                  <span class="text-muted small"><i class="bi bi-chat-dots me-1"></i>{{ s.get_contact_preference_display }}</span>
+                </div>
+              </div>
+              <div class="card-footer text-muted" style="font-size:.8rem;">
+                {{ s.created_at|date:"M j, Y" }}
+              </div>
+              <a href="{% url 'marketplace:skill_detail' s.pk %}" class="stretched-link" aria-label="View {{ s.title }}"></a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state" style="background:#fff; border-radius:1rem; box-shadow:var(--shadow-card);">
+        <i class="bi bi-inbox"></i>
+        <h5>No active skills listed</h5>
+        <p class="mb-0">{{ profile_user.username }} hasn't posted any skills yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-4">
+  <a href="{% url 'marketplace:home' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back to listings
+  </a>
+</div>
+
+{% endblock %}

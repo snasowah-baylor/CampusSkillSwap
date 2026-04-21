@@ -29,6 +29,7 @@ class SkillForm(BootstrapMixin, forms.ModelForm):
             "price",
             "is_free",
             "contact_preference",
+            "contact_info",
             "availability_status",
             "active",
         ]
@@ -42,7 +43,7 @@ class SkillForm(BootstrapMixin, forms.ModelForm):
                 attrs={
                     "rows": 5,
                     "placeholder": (
-                        "Describe what you offer and how other students " "can benefit."
+                        "Describe what you offer and how other students can benefit."
                     ),
                 },
             ),
@@ -51,6 +52,11 @@ class SkillForm(BootstrapMixin, forms.ModelForm):
                     "step": "0.01",
                     "min": "0",
                     "placeholder": "Leave empty if free",
+                },
+            ),
+            "contact_info": forms.TextInput(
+                attrs={
+                    "placeholder": "e.g. your@email.com, 555-123-4567, Discord: user#1234",
                 },
             ),
             "category": forms.Select(),
@@ -63,10 +69,12 @@ class SkillForm(BootstrapMixin, forms.ModelForm):
             "is_free": "Offer this service for free",
             "active": "Show this post publicly",
             "contact_preference": "Best way to contact you",
+            "contact_info": "Your contact details",
             "availability_status": "Availability status",
         }
         help_texts = {
             "price": "Enter a price or mark the post as free.",
+            "contact_info": "Shown to students who want to reach you. Match this to your preferred contact method above.",
         }
 
 

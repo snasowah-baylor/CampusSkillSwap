@@ -1,8 +1,8 @@
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import (
@@ -16,6 +16,16 @@ from django.views.generic import (
 from .forms import ReviewForm, SkillForm, SignupForm
 from .models import Review, Skill
 
+User = get_user_model()
+
+SORT_OPTIONS = [
+    ("-created_at", "Newest first"),
+    ("created_at", "Oldest first"),
+    ("-avg_rating", "Highest rated"),
+    ("price", "Price: low to high"),
+    ("-price", "Price: high to low"),
+]
+
 
 class HomeView(ListView):
     model = Skill
@@ -24,15 +34,14 @@ class HomeView(ListView):
     paginate_by = 8
 
     def get_queryset(self):
-        # Start with active posts only.
-        queryset = Skill.objects.filter(active=True)
+        queryset = Skill.objects.filter(active=True).annotate(avg_rating=Avg("reviews__rating"))
 
-        # Search terms and filters come from query parameters.
         query = self.request.GET.get("q", "").strip()
         category = self.request.GET.get("category", "")
         availability = self.request.GET.get("availability", "")
         contact = self.request.GET.get("contact", "")
         price_filter = self.request.GET.get("price", "")
+        sort = self.request.GET.get("sort", "-created_at")
 
         if query:
             queryset = queryset.filter(
@@ -55,25 +64,34 @@ class HomeView(ListView):
         elif price_filter == "paid":
             queryset = queryset.filter(is_free=False)
 
+        valid_sorts = {s[0] for s in SORT_OPTIONS}
+        if sort not in valid_sorts:
+            sort = "-created_at"
+
+        # Push nulls to end for rating sort
+        if sort == "-avg_rating":
+            from django.db.models import F
+            queryset = queryset.order_by(F("avg_rating").desc(nulls_last=True))
+        else:
+            queryset = queryset.order_by(sort)
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(
-            {
-                "query": self.request.GET.get("q", ""),
-                "selected_category": self.request.GET.get("category", ""),
-                "selected_availability": self.request.GET.get(
-                    "availability",
-                    "",
-                ),
-                "selected_contact": self.request.GET.get("contact", ""),
-                "selected_price": self.request.GET.get("price", ""),
-                "categories": Skill.CATEGORY_CHOICES,
-                "availabilities": Skill.AVAILABILITY_CHOICES,
-                "contacts": Skill.CONTACT_PREFERENCE_CHOICES,
-            }
-        )
+        get = self.request.GET
+        context.update({
+            "query": get.get("q", ""),
+            "selected_category": get.get("category", ""),
+            "selected_availability": get.get("availability", ""),
+            "selected_contact": get.get("contact", ""),
+            "selected_price": get.get("price", ""),
+            "selected_sort": get.get("sort", "-created_at"),
+            "categories": Skill.CATEGORY_CHOICES,
+            "availabilities": Skill.AVAILABILITY_CHOICES,
+            "contacts": Skill.CONTACT_PREFERENCE_CHOICES,
+            "sort_options": SORT_OPTIONS,
+        })
         return context
 
 
@@ -83,21 +101,29 @@ class SkillDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        skill   = self.object
+        skill = self.object
         reviews = skill.reviews.select_related("reviewer").all()
-        user    = self.request.user
+        user = self.request.user
         user_review = reviews.filter(reviewer=user).first() if user.is_authenticated else None
+
+        more_from_owner = (
+            Skill.objects.filter(owner=skill.owner, active=True)
+            .exclude(pk=skill.pk)
+            .annotate(avg_rating=Avg("reviews__rating"))[:4]
+        )
+
         context.update({
-            "reviews":          reviews,
-            "review_count":     reviews.count(),
-            "average_rating":   skill.average_rating(),
-            "review_form":      ReviewForm(),
-            "user_review":      user_review,
-            "can_review":       (
+            "reviews": reviews,
+            "review_count": reviews.count(),
+            "average_rating": skill.average_rating(),
+            "review_form": ReviewForm(),
+            "user_review": user_review,
+            "can_review": (
                 user.is_authenticated
                 and skill.owner != user
                 and user_review is None
             ),
+            "more_from_owner": more_from_owner,
         })
         return context
 
@@ -109,12 +135,8 @@ class SkillCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy("marketplace:dashboard")
 
     def form_valid(self, form):
-        # Set the owner automatically to the signed-in user.
         form.instance.owner = self.request.user
-        messages.success(
-            self.request,
-            "Your skill post was created successfully.",
-        )
+        messages.success(self.request, "Your skill post was created successfully.")
         return super().form_valid(form)
 
 
@@ -125,14 +147,10 @@ class SkillUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy("marketplace:dashboard")
 
     def get_queryset(self):
-        # Only allow the owner to edit their own posts.
         return Skill.objects.filter(owner=self.request.user)
 
     def form_valid(self, form):
-        messages.success(
-            self.request,
-            "Your skill post was updated successfully.",
-        )
+        messages.success(self.request, "Your skill post was updated successfully.")
         return super().form_valid(form)
 
 
@@ -149,12 +167,43 @@ class SkillDeleteView(LoginRequiredMixin, DeleteView):
         return super().form_valid(form)
 
 
+class UserProfileView(DetailView):
+    model = User
+    template_name = "marketplace/user_profile.html"
+    slug_field = "username"
+    slug_url_kwarg = "username"
+    context_object_name = "profile_user"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        profile_user = self.object
+        skills = (
+            Skill.objects.filter(owner=profile_user, active=True)
+            .annotate(avg_rating=Avg("reviews__rating"))
+        )
+        agg = Review.objects.filter(skill__owner=profile_user).aggregate(
+            total=Count("id"), avg=Avg("rating")
+        )
+        context.update({
+            "skills": skills,
+            "skill_count": skills.count(),
+            "review_total": agg["total"] or 0,
+            "avg_rating": round(agg["avg"], 1) if agg["avg"] else None,
+        })
+        return context
+
+
 @login_required
 def dashboard(request):
-    posts = request.user.skills.all()
+    posts = request.user.skills.all().annotate(avg_rating=Avg("reviews__rating"))
+    agg = Review.objects.filter(skill__owner=request.user).aggregate(
+        total=Count("id"), avg=Avg("rating")
+    )
     return render(request, "marketplace/dashboard.html", {
         "posts": posts,
         "active_count": posts.filter(active=True).count(),
+        "review_total": agg["total"] or 0,
+        "avg_rating": round(agg["avg"], 1) if agg["avg"] else None,
     })
 
 
@@ -171,7 +220,7 @@ def add_review(request, pk):
         form = ReviewForm(request.POST)
         if form.is_valid():
             review = form.save(commit=False)
-            review.skill    = skill
+            review.skill = skill
             review.reviewer = request.user
             review.save()
             messages.success(request, "Your review was submitted. Thank you!")
@@ -182,7 +231,7 @@ def add_review(request, pk):
 
 @login_required
 def delete_review(request, pk):
-    review   = get_object_or_404(Review, pk=pk, reviewer=request.user)
+    review = get_object_or_404(Review, pk=pk, reviewer=request.user)
     skill_pk = review.skill.pk
     if request.method == "POST":
         review.delete()
@@ -196,10 +245,7 @@ def signup(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(
-                request,
-                "Welcome! Your account has been created.",
-            )
+            messages.success(request, "Welcome! Your account has been created.")
             return redirect("marketplace:home")
         messages.error(request, "Please correct the errors below.")
     else:

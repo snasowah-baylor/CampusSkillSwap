@@ -54,6 +54,11 @@ class Skill(models.Model):
         choices=CONTACT_PREFERENCE_CHOICES,
         default="email",
     )
+    contact_info = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Your email, phone, Discord handle, etc. — shown to interested students.",
+    )
     availability_status = models.CharField(
         max_length=20,
         choices=AVAILABILITY_CHOICES,

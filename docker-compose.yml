@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: campusskillswap
+      POSTGRES_USER: campusskillswap
+      POSTGRES_PASSWORD: campusskillswap
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusskillswap"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py create_admin --username admin --email admin@example.com --password admin1234 &&
+             gunicorn campuskillswap.wsgi:application --bind 0.0.0.0:8000 --workers 2 --reload"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

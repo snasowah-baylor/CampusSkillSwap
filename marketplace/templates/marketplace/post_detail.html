@@ -7,6 +7,7 @@
 <nav aria-label="breadcrumb" class="mb-3">
   <ol class="breadcrumb" style="font-size:.85rem;">
     <li class="breadcrumb-item"><a href="{% url 'marketplace:home' %}" class="text-decoration-none">Browse</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'marketplace:home' %}?category={{ object.category }}" class="text-decoration-none">{{ object.category }}</a></li>
     <li class="breadcrumb-item active">{{ object.title }}</li>
   </ol>
 </nav>
@@ -41,11 +42,8 @@
           <div>
             {% for i in "12345" %}
               {% with n=forloop.counter %}
-                {% if n <= average_rating %}
-                  <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
-                {% else %}
-                  <i class="bi bi-star" style="color:#d1d5db;"></i>
-                {% endif %}
+                {% if n <= average_rating %}<i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+                {% else %}<i class="bi bi-star" style="color:#d1d5db;"></i>{% endif %}
               {% endwith %}
             {% endfor %}
           </div>
@@ -65,10 +63,11 @@
           <a class="btn btn-brand" href="{% url 'marketplace:skill_edit' object.pk %}">
             <i class="bi bi-pencil me-1"></i>Edit Post
           </a>
-          <a href="{% url 'marketplace:skill_delete' object.pk %}"
-             style="border:1.5px solid #fee2e2; border-radius:.625rem; color:#ef4444; font-weight:600; padding:.5rem 1.1rem;" class="btn btn-sm">
+          <button type="button" class="btn btn-sm"
+                  style="border:1.5px solid #fee2e2; border-radius:.625rem; color:#ef4444; font-weight:600; padding:.5rem 1.1rem;"
+                  data-bs-toggle="modal" data-bs-target="#deleteSkillModal">
             <i class="bi bi-trash me-1"></i>Delete
-          </a>
+          </button>
         </div>
       {% endif %}
     </div>
@@ -80,33 +79,37 @@
         {% if review_count %}<span class="text-muted fw-400 small">({{ review_count }})</span>{% endif %}
       </h2>
 
-      <!-- Submit review form -->
+      <!-- Submit review form — CSS star widget -->
       {% if can_review %}
         <div class="mb-4 p-4 rounded-3" style="background:#f8fafc; border:1.5px solid #e2e8f0;">
           <p class="fw-700 small mb-3">Leave a review</p>
           <form method="post" action="{% url 'marketplace:add_review' object.pk %}">
             {% csrf_token %}
-            <div class="row g-3">
-              <div class="col-sm-4">
-                <label class="form-label fw-semibold small mb-1" for="{{ review_form.rating.id_for_label }}">
-                  {{ review_form.rating.label }}
-                </label>
-                {{ review_form.rating }}
-                {% for error in review_form.rating.errors %}
-                  <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-              </div>
-              <div class="col-sm-8">
-                <label class="form-label fw-semibold small mb-1" for="{{ review_form.comment.id_for_label }}">
-                  {{ review_form.comment.label }}
-                </label>
-                {{ review_form.comment }}
-                {% for error in review_form.comment.errors %}
-                  <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold small mb-2">Your rating</label>
+              <div class="star-rating-input" role="group" aria-label="Rating">
+                <input type="radio" name="rating" id="star5" value="5" required>
+                <label for="star5" title="5 stars"><i class="bi bi-star-fill"></i></label>
+                <input type="radio" name="rating" id="star4" value="4">
+                <label for="star4" title="4 stars"><i class="bi bi-star-fill"></i></label>
+                <input type="radio" name="rating" id="star3" value="3">
+                <label for="star3" title="3 stars"><i class="bi bi-star-fill"></i></label>
+                <input type="radio" name="rating" id="star2" value="2">
+                <label for="star2" title="2 stars"><i class="bi bi-star-fill"></i></label>
+                <input type="radio" name="rating" id="star1" value="1">
+                <label for="star1" title="1 star"><i class="bi bi-star-fill"></i></label>
               </div>
             </div>
-            <button type="submit" class="btn btn-brand mt-3">
+            <div class="mb-3">
+              <label class="form-label fw-semibold small mb-1" for="{{ review_form.comment.id_for_label }}">
+                {{ review_form.comment.label }}
+              </label>
+              {{ review_form.comment }}
+              {% for error in review_form.comment.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-brand">
               <i class="bi bi-send me-1"></i>Submit Review
             </button>
           </form>
@@ -131,11 +134,13 @@
         <div class="mb-4 pb-4 {% if not forloop.last %}border-bottom{% endif %}">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <div class="d-flex align-items-center gap-2">
-              <div class="owner-avatar" style="width:36px;height:36px;font-size:.85rem;">
-                {{ review.reviewer.username|slice:":2"|upper }}
-              </div>
+              <a href="{% url 'marketplace:user_profile' review.reviewer.username %}" class="text-decoration-none">
+                <div class="owner-avatar" style="width:36px;height:36px;font-size:.85rem;">
+                  {{ review.reviewer.username|slice:":2"|upper }}
+                </div>
+              </a>
               <div>
-                <div class="fw-700 small">{{ review.reviewer.username }}</div>
+                <a href="{% url 'marketplace:user_profile' review.reviewer.username %}" class="fw-700 small text-decoration-none text-dark">{{ review.reviewer.username }}</a>
                 <div class="text-muted" style="font-size:.75rem;">{{ review.created_at|date:"M j, Y" }}</div>
               </div>
             </div>
@@ -156,14 +161,31 @@
           {% endif %}
 
           {% if user == review.reviewer %}
-            <form method="post" action="{% url 'marketplace:delete_review' review.pk %}" class="d-inline">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-sm"
-                      style="border:1.5px solid #fee2e2;border-radius:.5rem;color:#ef4444;font-size:.78rem;padding:.25rem .75rem;font-weight:600;"
-                      onclick="return confirm('Delete this review?')">
-                <i class="bi bi-trash me-1"></i>Delete
-              </button>
-            </form>
+            <button type="button" class="btn btn-sm"
+                    style="border:1.5px solid #fee2e2;border-radius:.5rem;color:#ef4444;font-size:.78rem;padding:.25rem .75rem;font-weight:600;"
+                    data-bs-toggle="modal" data-bs-target="#deleteReviewModal{{ review.pk }}">
+              <i class="bi bi-trash me-1"></i>Delete
+            </button>
+
+            <!-- Delete review modal -->
+            <div class="modal fade" id="deleteReviewModal{{ review.pk }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content border-0 rounded-3">
+                  <div class="modal-body p-4 text-center">
+                    <div class="mb-3" style="font-size:2rem; color:#ef4444;"><i class="bi bi-trash"></i></div>
+                    <h6 class="fw-700 mb-1">Delete review?</h6>
+                    <p class="text-muted small mb-3">This cannot be undone.</p>
+                    <form method="post" action="{% url 'marketplace:delete_review' review.pk %}">
+                      {% csrf_token %}
+                      <div class="d-flex gap-2 justify-content-center">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-sm" style="background:#ef4444;color:#fff;border:0;border-radius:.5rem;font-weight:600;">Delete</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
           {% endif %}
         </div>
       {% empty %}
@@ -180,20 +202,20 @@
     <!-- Owner card -->
     <div class="detail-card p-4 mb-3">
       <p class="form-section-title mb-3">Posted by</p>
-      <div class="d-flex align-items-center gap-3">
+      <a href="{% url 'marketplace:user_profile' object.owner.username %}" class="d-flex align-items-center gap-3 text-decoration-none text-dark">
         <div class="owner-avatar">{{ object.owner.username|slice:":2"|upper }}</div>
         <div>
           <div class="fw-700">{{ object.owner.username }}</div>
-          <div class="text-muted small">{{ object.created_at|date:"F j, Y" }}</div>
+          <div class="text-muted small">Member since {{ object.owner.date_joined|date:"M Y" }}</div>
         </div>
-      </div>
+      </a>
     </div>
 
     <!-- Contact card -->
-    <div class="detail-card p-4">
+    <div class="detail-card p-4 mb-3">
       <p class="form-section-title mb-3">Get in touch</p>
       <div class="contact-cta mb-3">
-        <div class="d-flex align-items-center gap-2 mb-1">
+        <div class="d-flex align-items-center gap-2 mb-2">
           {% with pref=object.contact_preference %}
             {% if pref == "email" %}<i class="bi bi-envelope text-muted"></i>
             {% elif pref == "chat" %}<i class="bi bi-chat-dots text-muted"></i>
@@ -202,10 +224,22 @@
           {% endwith %}
           <span class="fw-600 small">{{ object.get_contact_preference_display }}</span>
         </div>
-        <p class="text-muted small mb-0">
-          Reach out to {{ object.owner.username }} via their preferred contact method above.
-        </p>
+
+        {% if object.contact_info %}
+          {% with pref=object.contact_preference info=object.contact_info %}
+            {% if pref == "email" %}
+              <a href="mailto:{{ info }}" class="fw-600 text-break" style="color: var(--brand-600);">{{ info }}</a>
+            {% elif pref == "phone" %}
+              <a href="tel:{{ info }}" class="fw-600" style="color: var(--brand-600);">{{ info }}</a>
+            {% else %}
+              <span class="fw-600 text-break">{{ info }}</span>
+            {% endif %}
+          {% endwith %}
+        {% else %}
+          <p class="text-muted small mb-0">Contact info not provided — try sending a message via the platform.</p>
+        {% endif %}
       </div>
+
       <div class="d-flex flex-column gap-2">
         <div class="d-flex justify-content-between text-muted small py-1 border-bottom">
           <span>Status</span>
@@ -215,6 +249,10 @@
           <span>Category</span>
           <span class="fw-600 text-dark">{{ object.category }}</span>
         </div>
+        <div class="d-flex justify-content-between text-muted small py-1 border-bottom">
+          <span>Price</span>
+          <span class="fw-600 text-dark">{{ object.display_price }}</span>
+        </div>
         <div class="d-flex justify-content-between text-muted small py-1">
           <span>Rating</span>
           <span class="fw-600 text-dark">
@@ -223,6 +261,35 @@
         </div>
       </div>
     </div>
+
+    <!-- More from this provider -->
+    {% if more_from_owner %}
+    <div class="detail-card p-4">
+      <p class="form-section-title mb-3">More from {{ object.owner.username }}</p>
+      <div class="d-flex flex-column gap-2">
+        {% for s in more_from_owner %}
+          <a href="{% url 'marketplace:skill_detail' s.pk %}" class="mini-card">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              {% with cat=s.category|lower %}
+                <span class="badge-category badge-{{ cat }}" style="font-size:.65rem;">{{ s.category }}</span>
+              {% endwith %}
+              <span class="price-chip" style="font-size:.82rem;"><i class="bi bi-tag"></i>{{ s.display_price }}</span>
+            </div>
+            <div class="fw-600 small lh-sm">{{ s.title }}</div>
+            {% if s.avg_rating %}
+              <div class="card-stars mt-1" style="font-size:.7rem;">
+                {% for i in "12345" %}{% with n=forloop.counter %}{% if n <= s.avg_rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star star-empty"></i>{% endif %}{% endwith %}{% endfor %}
+                <span style="color:#92400e; font-weight:700;">{{ s.avg_rating|floatformat:1 }}</span>
+              </div>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </div>
+      <a href="{% url 'marketplace:user_profile' object.owner.username %}" class="btn btn-outline-brand btn-sm w-100 mt-3">
+        View all from {{ object.owner.username }}
+      </a>
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -231,5 +298,24 @@
     <i class="bi bi-arrow-left me-1"></i>Back to listings
   </a>
 </div>
+
+<!-- Delete skill modal -->
+{% if user == object.owner %}
+<div class="modal fade" id="deleteSkillModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 rounded-3">
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3" style="font-size:2.5rem; color:#ef4444;"><i class="bi bi-exclamation-triangle"></i></div>
+        <h6 class="fw-700 mb-1">Delete this post?</h6>
+        <p class="text-muted small mb-3">"{{ object.title }}" and all its reviews will be permanently removed.</p>
+        <div class="d-flex gap-2 justify-content-center">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <a href="{% url 'marketplace:skill_delete' object.pk %}" class="btn btn-sm" style="background:#ef4444;color:#fff;border:0;border-radius:.5rem;font-weight:600;">Delete</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% endblock %}
