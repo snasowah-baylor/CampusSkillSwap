@@ -507,11 +507,26 @@ BOOKINGS = [
 class Command(BaseCommand):
     help = "Seed the database with 20 users, 35 skills, 30 reviews, and 20 booking requests."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Wipe all existing marketplace data before seeding.",
+        )
+
     def handle(self, *args, **options):
         if Skill.objects.exists():
-            self.stdout.write(self.style.WARNING("Seed data already present — skipping."))
-            self.stdout.write("  Run 'python manage.py flush --no-input' first to reseed.")
-            return
+            if not options["reset"]:
+                self.stdout.write(self.style.WARNING("Seed data already present — skipping."))
+                self.stdout.write("  Re-run with --reset to wipe and replace all data.")
+                return
+            # --reset: delete all marketplace data, keep the admin superuser
+            self.stdout.write(self.style.WARNING("--reset: wiping existing data..."))
+            BookingRequest.objects.all().delete()
+            Review.objects.all().delete()
+            Skill.objects.all().delete()
+            User.objects.filter(is_superuser=False).delete()
+            self.stdout.write("  Existing data cleared.")
 
         self.stdout.write("Seeding database...")
 

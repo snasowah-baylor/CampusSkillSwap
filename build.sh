@@ -15,5 +15,13 @@ python manage.py create_admin \
     --email     "${ADMIN_EMAIL:-admin@example.com}" \
     --password  "${ADMIN_PASSWORD:-changeme123}"
 
-# Load sample data so the site isn't empty on first visit (idempotent)
-python manage.py seed
+# Seed sample data.
+# Normal deploys: skips if data already exists (idempotent).
+# To replace all data on next deploy: set RESEED=true in Render env vars,
+# then clear it after the deploy completes.
+if [ "${RESEED:-false}" = "true" ]; then
+    echo "RESEED=true — wiping and replacing all sample data..."
+    python manage.py seed --reset
+else
+    python manage.py seed
+fi
