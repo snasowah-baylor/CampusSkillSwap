@@ -13,8 +13,8 @@ from django.views.generic import (
     UpdateView,
 )
 
-from .forms import ReviewForm, SkillForm, SignupForm
-from .models import Review, Skill
+from .forms import BookingRequestForm, ReviewForm, SkillForm, SignupForm
+from .models import BookingRequest, Review, Skill
 
 User = get_user_model()
 
@@ -112,6 +112,11 @@ class SkillDetailView(DetailView):
             .annotate(avg_rating=Avg("reviews__rating"))[:4]
         )
 
+        user_booking = (
+            BookingRequest.objects.filter(skill=skill, requester=user).first()
+            if user.is_authenticated else None
+        )
+
         context.update({
             "reviews": reviews,
             "review_count": reviews.count(),
@@ -124,6 +129,13 @@ class SkillDetailView(DetailView):
                 and user_review is None
             ),
             "more_from_owner": more_from_owner,
+            "user_booking": user_booking,
+            "can_request": (
+                user.is_authenticated
+                and skill.owner != user
+                and user_booking is None
+            ),
+            "booking_form": BookingRequestForm(),
         })
         return context
 
@@ -199,11 +211,15 @@ def dashboard(request):
     agg = Review.objects.filter(skill__owner=request.user).aggregate(
         total=Count("id"), avg=Avg("rating")
     )
+    pending_requests = BookingRequest.objects.filter(
+        skill__owner=request.user, status="pending"
+    ).count()
     return render(request, "marketplace/dashboard.html", {
         "posts": posts,
         "active_count": posts.filter(active=True).count(),
         "review_total": agg["total"] or 0,
         "avg_rating": round(agg["avg"], 1) if agg["avg"] else None,
+        "pending_requests": pending_requests,
     })
 
 
@@ -237,6 +253,56 @@ def delete_review(request, pk):
         review.delete()
         messages.success(request, "Your review was deleted.")
     return redirect("marketplace:skill_detail", pk=skill_pk)
+
+
+@login_required
+def request_booking(request, pk):
+    skill = get_object_or_404(Skill, pk=pk, active=True)
+    if skill.owner == request.user:
+        messages.error(request, "You cannot request your own skill.")
+        return redirect("marketplace:skill_detail", pk=pk)
+    if BookingRequest.objects.filter(skill=skill, requester=request.user).exists():
+        messages.error(request, "You have already sent a request for this skill.")
+        return redirect("marketplace:skill_detail", pk=pk)
+    if request.method == "POST":
+        form = BookingRequestForm(request.POST)
+        if form.is_valid():
+            booking = form.save(commit=False)
+            booking.skill = skill
+            booking.requester = request.user
+            booking.save()
+            messages.success(request, "Your session request was sent!")
+    return redirect("marketplace:skill_detail", pk=pk)
+
+
+@login_required
+def my_requests(request):
+    sent = BookingRequest.objects.filter(
+        requester=request.user
+    ).select_related("skill", "skill__owner")
+    received = BookingRequest.objects.filter(
+        skill__owner=request.user
+    ).select_related("skill", "requester")
+    return render(request, "marketplace/requests.html", {
+        "sent": sent,
+        "received": received,
+    })
+
+
+@login_required
+def respond_to_request(request, pk):
+    booking = get_object_or_404(BookingRequest, pk=pk, skill__owner=request.user)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "accept":
+            booking.status = "accepted"
+            booking.save()
+            messages.success(request, f"You accepted {booking.requester.username}'s request.")
+        elif action == "decline":
+            booking.status = "declined"
+            booking.save()
+            messages.info(request, f"You declined {booking.requester.username}'s request.")
+    return redirect("marketplace:my_requests")
 
 
 def signup(request):

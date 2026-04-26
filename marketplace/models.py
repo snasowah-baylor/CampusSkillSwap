@@ -116,3 +116,30 @@ class Review(models.Model):
     @property
     def star_range(self):
         return range(1, 6)
+
+
+class BookingRequest(models.Model):
+    STATUS_CHOICES = [
+        ("pending",  "Pending"),
+        ("accepted", "Accepted"),
+        ("declined", "Declined"),
+    ]
+
+    skill     = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="booking_requests")
+    requester = models.ForeignKey(User,  on_delete=models.CASCADE, related_name="booking_requests_sent")
+    message   = models.TextField(blank=True)
+    status    = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-requested_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["skill", "requester"],
+                name="one_request_per_skill",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.requester.username} → {self.skill.title} ({self.status})"

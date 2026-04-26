@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 
-from .models import Review, Skill
+from .models import BookingRequest, Review, Skill
 
 User = get_user_model()
 
@@ -188,3 +188,28 @@ class ReviewAdmin(admin.ModelAdmin):
     def short_comment(self, obj):
         return (obj.comment[:60] + "…") if len(obj.comment) > 60 else obj.comment or "—"
     short_comment.short_description = "Comment"
+
+
+# ── BookingRequest admin ───────────────────────────────────────────────────────
+@admin.register(BookingRequest)
+class BookingRequestAdmin(admin.ModelAdmin):
+    list_display  = ("skill", "requester", "status_badge", "requested_at")
+    list_filter   = ("status",)
+    search_fields = ("skill__title", "requester__username", "message")
+    readonly_fields = ("skill", "requester", "requested_at", "updated_at")
+    ordering      = ("-requested_at",)
+
+    def status_badge(self, obj):
+        colors = {
+            "pending":  ("#fef3c7", "#92400e"),
+            "accepted": ("#d1fae5", "#065f46"),
+            "declined": ("#fee2e2", "#991b1b"),
+        }
+        bg, fg = colors.get(obj.status, ("#f1f5f9", "#475569"))
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 10px;'
+            'border-radius:999px;font-size:0.78rem;font-weight:600;">{}</span>',
+            bg, fg, obj.get_status_display(),
+        )
+    status_badge.short_description = "Status"
+    status_badge.admin_order_field = "status"

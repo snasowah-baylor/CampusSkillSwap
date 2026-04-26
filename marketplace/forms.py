@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
-from .models import Review, Skill
+from .models import BookingRequest, Review, Skill
 
 
 class BootstrapMixin:
@@ -86,6 +86,19 @@ class SignupForm(BootstrapMixin, UserCreationForm):
 
 class LoginForm(BootstrapMixin, AuthenticationForm):
     pass
+
+
+class BookingRequestForm(BootstrapMixin, forms.ModelForm):
+    class Meta:
+        model = BookingRequest
+        fields = ["message"]
+        widgets = {
+            "message": forms.Textarea(attrs={
+                "rows": 3,
+                "placeholder": "Tell the provider what you need or when you're available (optional).",
+            }),
+        }
+        labels = {"message": "Message (optional)"}
 
 
 class ReviewForm(BootstrapMixin, forms.ModelForm):

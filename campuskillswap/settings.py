@@ -10,7 +10,12 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG       = env("DEBUG")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+# Render sets RENDER_EXTERNAL_HOSTNAME automatically — append it so the app accepts its own domain
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default=None)
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -52,6 +57,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "campuskillswap.wsgi.application"
+
+# CSRF — allow the Render HTTPS domain and any additional origins configured via env
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+
+# Production security — only active when DEBUG=False (i.e. on Render)
+# Render terminates SSL at their load balancer, so we use the forwarded-proto header
+# rather than SECURE_SSL_REDIRECT (which would cause redirect loops behind their proxy)
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 DATABASES = {
     "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),

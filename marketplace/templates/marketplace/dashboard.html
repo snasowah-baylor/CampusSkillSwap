@@ -66,6 +66,26 @@
 </div>
 {% endwith %}
 
+<!-- Requests quick link -->
+<div class="mb-4">
+  <a href="{% url 'marketplace:my_requests' %}" class="d-flex align-items-center gap-3 p-3 rounded-3 text-decoration-none"
+     style="background:{% if pending_requests %}#dbeafe{% else %}#f8fafc{% endif %}; border:1.5px solid {% if pending_requests %}#bfdbfe{% else %}#e2e8f0{% endif %}; color:{% if pending_requests %}#1d4ed8{% else %}#64748b{% endif %};">
+    <div class="stat-icon" style="background:{% if pending_requests %}#bfdbfe{% else %}#e2e8f0{% endif %}; color:{% if pending_requests %}#1d4ed8{% else %}#94a3b8{% endif %}; flex-shrink:0;">
+      <i class="bi bi-calendar-check"></i>
+    </div>
+    <div>
+      {% if pending_requests %}
+        <span class="fw-700">{{ pending_requests }} pending session request{{ pending_requests|pluralize }}</span>
+        <span class="small ms-1 opacity-75">— click to respond</span>
+      {% else %}
+        <span class="fw-600">Session Requests</span>
+        <span class="small ms-1 text-muted">— no pending requests</span>
+      {% endif %}
+    </div>
+    <i class="bi bi-arrow-right ms-auto"></i>
+  </a>
+</div>
+
 <!-- Listings -->
 {% if posts %}
   <div class="row row-cols-1 row-cols-md-2 g-4">
