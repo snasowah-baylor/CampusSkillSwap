@@ -1,6 +1,8 @@
-.*
-!.gitignore
-!.env
+.claude
+.github
+.venv
+.vscode
+.dockerignore
 
 # Python
 __pycache__/
@@ -10,4 +12,4 @@ __pycache__/
 # Django
 db.sqlite3
 *.env
-.env*
+.env.*
